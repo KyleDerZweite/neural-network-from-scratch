@@ -1,0 +1,16 @@
+[package]
+name = "neuralnet"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+
+[workspace]
+members = [
+    ".",
+    "crates/linalg_scratch",
+    "crates/nn_scratch",
+    "crates/datasets",
+    "crates/metrics"
+]

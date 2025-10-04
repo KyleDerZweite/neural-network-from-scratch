@@ -1,0 +1,17 @@
+[package]
+name = "web-interface"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { workspace = true }
+meval = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+uuid = { workspace = true }
+nn-core = { path = "../nn-core" }
+
+[dev-dependencies]
+tower = { workspace = true }
+http-body-util = { workspace = true }

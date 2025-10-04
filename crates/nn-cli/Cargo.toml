@@ -1,0 +1,15 @@
+[package]
+name = "nn-cli"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["parallel"]
+profiling = ["nn-core/profiling"]
+parallel = ["nn-core/parallel"]
+
+[dependencies]
+clap = { workspace = true }
+chrono = { workspace = true }
+plotters = { workspace = true }
+nn-core = { path = "../nn-core" }

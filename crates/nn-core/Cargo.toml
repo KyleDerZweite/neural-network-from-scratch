@@ -1,0 +1,14 @@
+[package]
+name = "nn-core"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["parallel"]
+profiling = []
+parallel = ["rayon"]
+
+[dependencies]
+rand = { workspace = true }
+once_cell = { workspace = true }
+rayon = { version = "1.10", optional = true }

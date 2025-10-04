@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Web Interface</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <h1>Neural Network Web Interface</h1>
+    <div id="app">
+        <div class="config-section">
+            <h2>Network Configuration</h2>
+            <label for="layers">Layers (comma-separated):</label>
+            <input type="text" id="layers" value="2,32,1"><br>
+
+            <label for="activation_function">Activation Function:</label>
+            <select id="activation_function">
+                <option value="sigmoid">Sigmoid</option>
+                <option value="relu">ReLU</option>
+            </select><br>
+
+            <label for="learning_rate">Learning Rate:</label>
+            <input type="number" id="learning_rate" value="0.01" step="0.001"><br>
+
+            <label for="epochs">Epochs:</label>
+            <input type="number" id="epochs" value="20000"><br>
+
+            <label for="target_type">Target Type:</label>
+            <select id="target_type">
+                <option value="function">Function</option>
+                <option value="logical_operation">Logical Operation</option>
+            </select><br>
+
+            <div id="function_input">
+                <label for="target_expression">Target Expression (e.g., sin(x)):</label>
+                <input type="text" id="target_expression" value="sin(x)"><br>
+            </div>
+
+            <div id="logical_operation_input" style="display:none;">
+                <label for="logical_operation">Logical Operation:</label>
+                <select id="logical_operation">
+                    <option value="xor">XOR</option>
+                    <option value="and">AND</option>
+                    <option value="or">OR</option>
+                    <option value="not">NOT</option>
+                </select><br>
+            </div>
+
+            <button id="train_button">Train</button>
+        </div>
+
+        <div class="status-section">
+            <h2>Training Status</h2>
+            <p>Job ID: <span id="job_id"></span></p>
+            <p>Status: <span id="status"></span></p>
+            <p>Progress: <span id="progress"></span>%</p>
+            <p>Current Loss: <span id="current_loss"></span></p>
+            <p>Warning: <span id="warning"></span></p>
+            <p>Message: <span id="status_message"></span></p>
+            <canvas id="loss_chart"></canvas>
+            <button id="stop_training_button" style="display:none;">Stop Training</button>
+        </div>
+
+        <div class="prediction-section">
+            <h2>Prediction</h2>
+            <label for="prediction_input">Input (comma-separated):</label>
+            <input type="text" id="prediction_input" value="0.5"><br>
+            <button id="predict_button">Predict</button>
+            <p>Prediction: <span id="prediction_output"></span></p>
+            <p>Actual Result: <span id="actual_result"></span></p>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/app.js"></script>
+</body>
+</html>

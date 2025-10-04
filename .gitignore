@@ -1,3 +1,12 @@
 /target
-*.lock
+.gemini
+.github
 .idea
+.vscode
+.DS_Store
+*.log
+*.tmp
+/plots/*
+flamegraph.svg
+perf.data
+*.lock

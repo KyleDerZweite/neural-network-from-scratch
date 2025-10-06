@@ -2,7 +2,6 @@
 members = [
 	"crates/nn-core",
 	"crates/nn-core-library",
-	"crates/nn-core-optimized",
 	"crates/nn-cli",
 	"crates/web-interface",
 ]

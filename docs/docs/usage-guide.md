@@ -41,13 +41,60 @@ Timing information prints to stdout, highlighting the cost of matrix operations 
 
 ## 4. Explore the AI-Assisted Variant
 
+The `nn-core-library` crate provides an optimized implementation using `ndarray` with multiple acceleration options.
+
+### Run with Default Configuration (Rayon Parallelization)
+
+```bash
+cargo run --release -p nn-cli -- --task benchmark
+```
+
+This uses pure Rust with Rayon for multi-threaded parallelization across CPU cores.
+
+### Run with BLAS Acceleration
+
+For improved performance on larger datasets, enable BLAS support using FlexiBLAS:
+
+```bash
+cargo run --release -p nn-cli --features nn-core-library/blas -- --task benchmark
+```
+
+**System Requirements:**
+- Fedora/RHEL: `sudo dnf install flexiblas-devel`
+- Ubuntu/Debian: `sudo apt install libopenblas-dev`
+- Arch: `sudo pacman -S openblas`
+
+**Performance Comparison:**
+
+| Task | Without BLAS | With BLAS | Best Choice |
+|------|-------------|-----------|-------------|
+| XOR (small) | 0.065s | 0.150s | **Pure Rust** (2.3x faster) |
+| SIN (large) | 10.226s | 8.283s | **BLAS** (1.23x faster) |
+
+**Key Insight:** BLAS has overhead that makes it slower for small matrices but faster for larger workloads. Use the default (without BLAS) for small networks, and enable BLAS for larger datasets.
+
+### Run Specific Tasks
+
+```bash
+# XOR task with nn-core-library
+cargo run --release -p nn-cli -- --task xor-library
+
+# SIN approximation with nn-core-library
+cargo run --release -p nn-cli -- --task sin-library
+
+# With BLAS enabled
+cargo run --release -p nn-cli --features nn-core-library/blas -- --task sin-library
+```
+
+### GPU Acceleration (Optional)
+
 Want to try the GPU-enabled version?
 
 ```bash
-cargo run -p nn-cli --no-default-features --features gpu -- train xor
+cargo run -p nn-cli --features nn-core-library/gpu -- --task benchmark
 ```
 
-This toggles the `nn-core-library` backend with optional GPU acceleration. If no compatible GPU is found, the code logs a warning and falls back to CPU execution.
+This enables the `wgpu`-based GPU acceleration. If no compatible GPU is found, the code logs a warning and falls back to CPU execution.
 
 ## 5. Run Tests
 

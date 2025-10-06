@@ -1,7 +1,6 @@
 //! Feed-forward training loop powered by ndarray with optional GPU acceleration
 //! and configurable optimisation strategies.
 
-use crate::activation::{self, Activation};
 use crate::layer::Layer;
 use crate::optimizer::{OptimizerKind, OptimizerState};
 use ndarray::{Array2, Axis};
@@ -32,14 +31,7 @@ impl NeuralNetwork {
     ) -> Self {
         let layer_shapes: Vec<_> = layers
             .iter()
-            .map(|layer| {
-                (
-                    layer.weights.nrows(),
-                    layer.weights.ncols(),
-                    layer.biases.nrows(),
-                    layer.biases.ncols(),
-                )
-            })
+            .map(|layer| (layer.weights.nrows(), layer.weights.ncols()))
             .collect();
 
         let optimizer_state = OptimizerState::new(optimizer_kind, &layer_shapes);
@@ -100,9 +92,10 @@ impl NeuralNetwork {
                 let output_activation = activations.last().expect("output activation available");
                 let mut delta = output_activation - &target;
 
-                if matches!(self.layers.last().map(|l| &l.activation), Some(Activation::Sigmoid)) {
-                    delta = delta * activation::sigmoid_derivative_from_output(output_activation);
-                }
+                // Apply output layer activation derivative
+                let last_layer = self.layers.last().unwrap();
+                let output_deriv = last_layer.activation.derivative(output_activation);
+                delta = delta * &output_deriv;
 
                 for layer_idx in (0..self.layers.len()).rev() {
                     crate::profile_scope!("network.backward");
@@ -114,10 +107,9 @@ impl NeuralNetwork {
                     let next_delta = if layer_idx > 0 {
                         let weights_t = self.layers[layer_idx].weights.t().to_owned();
                         let mut propagated = self.matmul(&weights_t, &delta);
-                        if matches!(self.layers[layer_idx - 1].activation, Activation::Sigmoid) {
-                            let deriv = activation::sigmoid_derivative_from_output(&activations[layer_idx]);
-                            propagated = propagated * deriv;
-                        }
+                        // Apply previous layer's activation derivative
+                        let prev_deriv = self.layers[layer_idx - 1].activation.derivative(&activations[layer_idx]);
+                        propagated = propagated * prev_deriv;
                         Some(propagated)
                     } else {
                         None
@@ -125,7 +117,7 @@ impl NeuralNetwork {
 
                     {
                         let layer = &mut self.layers[layer_idx];
-                        self.optimizer_state.apply(
+                        self.optimizer_state.apply_layer(
                             layer_idx,
                             &weight_grad,
                             &bias_grad,
@@ -139,6 +131,9 @@ impl NeuralNetwork {
                         delta = propagated;
                     }
                 }
+
+                // Step the optimizer (for Adam timestep management)
+                self.optimizer_state.step();
             }
 
             if epoch % 1_000 == 0 {

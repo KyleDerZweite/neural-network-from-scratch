@@ -85,8 +85,8 @@ impl GpuAccelerator {
         let (device, queue) = pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: Some("nn-core-library GPU device"),
-                features: wgpu::Features::empty(),
-                limits: wgpu::Limits::downlevel_defaults(),
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::downlevel_defaults(),
             },
             None,
         ))
@@ -154,6 +154,7 @@ impl GpuAccelerator {
             layout: Some(&pipeline_layout),
             module: &shader,
             entry_point: "main",
+            compilation_options: Default::default(),
         });
 
         Ok(Self {
@@ -244,6 +245,7 @@ impl GpuAccelerator {
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("nn-core-library matmul pass"),
+                timestamp_writes: None,
             });
             pass.set_pipeline(&self.matmul_pipeline);
             pass.set_bind_group(0, &bind_group, &[]);
@@ -257,9 +259,12 @@ impl GpuAccelerator {
         self.queue.submit(Some(encoder.finish()));
 
         let buffer_slice = staging_buffer.slice(..);
-        let map_future = buffer_slice.map_async(wgpu::MapMode::Read);
+        let (tx, rx) = std::sync::mpsc::channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            tx.send(result).unwrap();
+        });
         self.device.poll(wgpu::Maintain::Wait);
-        pollster::block_on(map_future).map_err(GpuError::BufferCopy)?;
+        rx.recv().unwrap().map_err(GpuError::BufferCopy)?;
 
         let data = buffer_slice.get_mapped_range();
         let result: Vec<f32> = bytemuck::cast_slice(&data).to_vec();

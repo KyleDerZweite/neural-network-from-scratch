@@ -5,17 +5,23 @@ edition = "2021"
 description = "Neural network core built on battle-tested ecosystem crates"
 
 [features]
-default = ["gpu"]
+default = ["parallel"]
 blas = ["ndarray/blas"]
+parallel = ["ndarray/rayon", "rayon"]
 profiling = []
 gpu = ["wgpu", "pollster", "bytemuck"]
 
 [dependencies]
-ndarray = { version = "0.15", features = ["rayon"] }
+ndarray = { version = "0.15", features = ["approx"] }
+ndarray-rand = "0.14"
+rayon = { version = "1.10", optional = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
 rand_distr = "0.4"
 wgpu = { version = "0.20", optional = true }
 pollster = { version = "0.3", optional = true }
-bytemuck = { version = "1.15", optional = true }
+bytemuck = { version = "1.15", optional = true, features = ["derive"] }
 log = "0.4"
+
+[dev-dependencies]
+approx = "0.5"

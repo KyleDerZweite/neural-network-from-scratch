@@ -16,8 +16,8 @@ fn main() {
     match args.task.as_str() {
         "xor-core" => run_xor_core(),
         "xor-library" => run_xor_library(),
-        "sin-core" => run_sin_core(0.24),
-        "sin-library" => run_sin_library(0.24),
+        "sin-core" => run_sin_core(0.20),
+        "sin-library" => run_sin_library(0.01),
         "benchmark" => run_benchmark(),
         _ => println!("Invalid task. Please use 'xor-core', 'xor-library', 'xor-optimized', 'sin-core', 'sin-library', or 'sin-optimized'."),
     }
@@ -76,10 +76,10 @@ fn run_benchmark() {
     println!("{:<20} {:>15.3} {:>15.8} {:>20.2}x", "nn-library", sin_lib_time, sin_lib_mse, sin_core_time / sin_lib_time);
 
     println!("\n{:=^100}", " XOR PREDICTIONS ");
-    println!("{:<15} {:>12} {:>12} {:>12} {:>12}", "Input", "nn-core", "nn-library", "nn-optimized", "Target");
-    println!("{:-<63}", "");
+    println!("{:<15} {:>12} {:>12} {:>12}", "Input", "nn-core", "nn-library", "Target");
+    println!("{:-<51}", "");
     for i in 0..xor_inputs.len() {
-        println!("{:<15} {:>12.4} {:>12.4} {:>12.4} {:>12.1}",
+        println!("{:<15} {:>12.4} {:>12.4} {:>12.1}",
                  format!("{:?}", xor_inputs[i]), 
                  xor_core_preds[i], 
                  xor_lib_preds[i], 
@@ -87,10 +87,10 @@ fn run_benchmark() {
     }
 
     println!("\n{:=^100}", " SIN APPROXIMATION PREDICTIONS (First 5 samples) ");
-    println!("{:<10} {:>12} {:>12} {:>12} {:>12}", "Input", "nn-core", "nn-library", "nn-optimized", "Target");
-    println!("{:-<58}", "");
+    println!("{:<10} {:>12} {:>12} {:>12}", "Input", "nn-core", "nn-library", "Target");
+    println!("{:-<46}", "");
     for i in 0..5 {
-        println!("{:<10.2} {:>12.6} {:>12.6} {:>12.6} {:>12.6}",
+        println!("{:<10.2} {:>12.6} {:>12.6} {:>12.6}",
                  sin_inputs[i][0], 
                  sin_core_preds[i], 
                  sin_lib_preds[i], 
@@ -120,9 +120,9 @@ fn benchmark_xor_core(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, 
 }
 
 fn benchmark_xor_library(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, f64, Vec<f64>) {
-    use nn_core_library::{layer::Layer, network::NeuralNetwork};
+    use nn_core_library::{layer::Layer, network::NeuralNetwork, optimizer::OptimizerKind};
     let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
-    let mut net = NeuralNetwork::new(layers, 0.5);
+    let mut net = NeuralNetwork::with_optimizer(layers, 0.5, OptimizerKind::sgd());
     let start = Instant::now();
     let loss_history = net.train(inputs, targets, 20000);
     let time = start.elapsed().as_secs_f64();
@@ -144,9 +144,9 @@ fn benchmark_sin_core(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, 
 }
 
 fn benchmark_sin_library(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, f64, Vec<f64>) {
-    use nn_core_library::{layer::Layer, network::NeuralNetwork};
+    use nn_core_library::{layer::Layer, network::NeuralNetwork, optimizer::OptimizerKind};
     let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
-    let mut net = NeuralNetwork::new(layers, 0.24);
+    let mut net = NeuralNetwork::with_optimizer(layers, 0.24, OptimizerKind::sgd());
     let start = Instant::now();
     let loss_history = net.train(inputs, targets, 20000);
     let time = start.elapsed().as_secs_f64();
@@ -187,10 +187,10 @@ fn run_xor_core() {
 }
 
 fn run_xor_library() {
-    use nn_core_library::{layer::Layer, network::NeuralNetwork};
+    use nn_core_library::{layer::Layer, network::NeuralNetwork, optimizer::OptimizerKind};
     println!("Running XOR task with nn-core-library...");
     let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
-    let mut net = NeuralNetwork::new(layers, 0.5);
+    let mut net = NeuralNetwork::with_optimizer(layers, 0.5, OptimizerKind::sgd());
 
     let inputs = vec![
         vec![0.0, 0.0],
@@ -253,10 +253,10 @@ fn run_sin_core(learning_rate: f64) {
 }
 
 fn run_sin_library(learning_rate: f64) {
-    use nn_core_library::{layer::Layer, network::NeuralNetwork};
+    use nn_core_library::{layer::Layer, network::NeuralNetwork, optimizer::OptimizerKind};
     println!("Running sine approximation task with nn-core-library...");
-    let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
-    let mut net = NeuralNetwork::new(layers, learning_rate);
+    let layers = vec![Layer::new(1, 64, "sigmoid"), Layer::new(64, 1, "linear")];
+    let mut net = NeuralNetwork::with_optimizer(layers, learning_rate, OptimizerKind::sgd());
 
     let mut inputs = Vec::new();
     let mut targets = Vec::new();
@@ -266,7 +266,7 @@ fn run_sin_library(learning_rate: f64) {
         targets.push(vec![x.sin()]);
     }
 
-    let loss_history = net.train(&inputs, &targets, 20000);
+    let loss_history = net.train(&inputs, &targets, 30000);
     plot_loss(&loss_history, "sin-library").unwrap();
 
     println!("\nSine approximation complete.");

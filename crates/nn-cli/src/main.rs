@@ -15,7 +15,7 @@ fn main() {
 
     match args.task.as_str() {
         "xor" => run_xor(),
-        "sin" => run_sin(),
+        "sin" => run_sin(0.24),
         _ => println!("Invalid task. Please use 'xor' or 'sin'."),
     }
 }
@@ -90,15 +90,49 @@ fn run_xor() {
     }
 }
 
-fn run_sin() {
+fn run_sin_with_lr() {
+    let mut best_learning_rate = 0.01;
+    let mut best_loss = f64::INFINITY;
+    
+    let mut learning_rate: f64 = 0.01;
+    for _ in 0..100 {
+        println!("\nRunning sine approximation with learning rate: {}", learning_rate);
+        
+        // Temporarily capture the loss history to find min loss
+        let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
+        let mut net = NeuralNetwork::new(layers, learning_rate);
+        
+        let mut inputs = Vec::new();
+        let mut targets = Vec::new();
+        for i in 0..200 {
+            let x = i as f64 * 7.0 / 200.0;
+            inputs.push(vec![x]);
+            targets.push(vec![x.sin()]);
+        }
+        
+        let loss_history = net.train(&inputs, &targets, 20000);
+        let min_loss = *loss_history.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+        
+        if min_loss < best_loss {
+            best_loss = min_loss;
+            best_learning_rate = learning_rate;
+        }
+        
+        learning_rate += 0.01;
+    }
+    
+    println!("\nBest learning rate: {} with loss: {}", best_learning_rate, best_loss);
+}
+
+fn run_sin(learning_rate: f64) {
     println!("Running sine approximation task...");
     let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
-    let mut net = NeuralNetwork::new(layers, 0.01);
+    let mut net = NeuralNetwork::new(layers, learning_rate);
 
     let mut inputs = Vec::new();
     let mut targets = Vec::new();
-    for i in 0..200 {
-        let x = i as f64 * 7.0 / 200.0;
+    for i in 0..1000 {
+        let x = i as f64 * 7.0 / 1000.0;
         inputs.push(vec![x]);
         targets.push(vec![x.sin()]);
     }
@@ -121,6 +155,9 @@ fn run_sin() {
             input[0], prediction[0], target[0]
         );
     }
+    
+    let min_loss = *loss_history.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    println!("Minimum loss achieved: {}", min_loss);
 }
 
 #[cfg(feature = "profiling")]

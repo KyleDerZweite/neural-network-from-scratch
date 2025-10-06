@@ -1,20 +1,77 @@
-//! Feed-forward training loop powered by ndarray.
+//! Feed-forward training loop powered by ndarray with optional GPU acceleration
+//! and configurable optimisation strategies.
 
 use crate::activation::{self, Activation};
 use crate::layer::Layer;
+use crate::optimizer::{OptimizerKind, OptimizerState};
 use ndarray::{Array2, Axis};
+
+#[cfg(feature = "gpu")]
+use crate::gpu::{GpuAccelerator, DEFAULT_GPU_WORKLOAD_THRESHOLD};
 
 pub struct NeuralNetwork {
     pub layers: Vec<Layer>,
     pub learning_rate: f64,
+    optimizer_kind: OptimizerKind,
+    optimizer_state: OptimizerState,
+    #[cfg(feature = "gpu")]
+    gpu: Option<GpuAccelerator>,
+    #[cfg(feature = "gpu")]
+    gpu_workload_threshold: usize,
 }
 
 impl NeuralNetwork {
     pub fn new(layers: Vec<Layer>, learning_rate: f64) -> Self {
+        Self::with_optimizer(layers, learning_rate, OptimizerKind::default())
+    }
+
+    pub fn with_optimizer(
+        layers: Vec<Layer>,
+        learning_rate: f64,
+        optimizer_kind: OptimizerKind,
+    ) -> Self {
+        let layer_shapes: Vec<_> = layers
+            .iter()
+            .map(|layer| {
+                (
+                    layer.weights.nrows(),
+                    layer.weights.ncols(),
+                    layer.biases.nrows(),
+                    layer.biases.ncols(),
+                )
+            })
+            .collect();
+
+        let optimizer_state = OptimizerState::new(optimizer_kind, &layer_shapes);
+
+        #[cfg(feature = "gpu")]
+        let gpu = match GpuAccelerator::new() {
+            Ok(accel) => Some(accel),
+            Err(err) => {
+                log::warn!("GPU accelerator unavailable, continuing with CPU: {err}");
+                None
+            }
+        };
+
         Self {
             layers,
             learning_rate,
+            optimizer_kind,
+            optimizer_state,
+            #[cfg(feature = "gpu")]
+            gpu,
+            #[cfg(feature = "gpu")]
+            gpu_workload_threshold: DEFAULT_GPU_WORKLOAD_THRESHOLD,
         }
+    }
+
+    pub fn optimizer_kind(&self) -> OptimizerKind {
+        self.optimizer_kind
+    }
+
+    #[cfg(feature = "gpu")]
+    pub fn set_gpu_workload_threshold(&mut self, threshold: usize) {
+        self.gpu_workload_threshold = threshold.max(1);
     }
 
     pub fn train(
@@ -31,28 +88,32 @@ impl NeuralNetwork {
                 let input = column_from(input_vec);
                 let target = column_from(target_vec);
 
-                let mut activations: Vec<Array2<f64>> = vec![input];
+                let mut activations: Vec<Array2<f64>> = Vec::with_capacity(self.layers.len() + 1);
+                activations.push(input);
                 for layer in &self.layers {
-                    let z = layer.weights.dot(activations.last().unwrap()) + &layer.biases;
+                    let weighted = self.matmul(&layer.weights, activations.last().expect("activation available"));
+                    let z = weighted + &layer.biases;
                     let activation = layer.activation.apply(z);
                     activations.push(activation);
                 }
 
-                let output = activations.last().expect("output activation available");
-                let mut delta = output - &target;
+                let output_activation = activations.last().expect("output activation available");
+                let mut delta = output_activation - &target;
 
                 if matches!(self.layers.last().map(|l| &l.activation), Some(Activation::Sigmoid)) {
-                    delta = delta * activation::sigmoid_derivative_from_output(output);
+                    delta = delta * activation::sigmoid_derivative_from_output(output_activation);
                 }
 
                 for layer_idx in (0..self.layers.len()).rev() {
                     crate::profile_scope!("network.backward");
                     let activation_prev = &activations[layer_idx];
-                    let weight_grad = delta.dot(&activation_prev.t());
+                    let activation_prev_t = activation_prev.t().to_owned();
+                    let weight_grad = self.matmul(&delta, &activation_prev_t);
                     let bias_grad = delta.clone();
 
                     let next_delta = if layer_idx > 0 {
-                        let mut propagated = self.layers[layer_idx].weights.t().dot(&delta);
+                        let weights_t = self.layers[layer_idx].weights.t().to_owned();
+                        let mut propagated = self.matmul(&weights_t, &delta);
                         if matches!(self.layers[layer_idx - 1].activation, Activation::Sigmoid) {
                             let deriv = activation::sigmoid_derivative_from_output(&activations[layer_idx]);
                             propagated = propagated * deriv;
@@ -62,10 +123,17 @@ impl NeuralNetwork {
                         None
                     };
 
-                    self.layers[layer_idx].weights =
-                        &self.layers[layer_idx].weights - &(weight_grad * self.learning_rate);
-                    self.layers[layer_idx].biases =
-                        &self.layers[layer_idx].biases - &(bias_grad * self.learning_rate);
+                    {
+                        let layer = &mut self.layers[layer_idx];
+                        self.optimizer_state.apply(
+                            layer_idx,
+                            &weight_grad,
+                            &bias_grad,
+                            &mut layer.weights,
+                            &mut layer.biases,
+                            self.learning_rate,
+                        );
+                    }
 
                     if let Some(propagated) = next_delta {
                         delta = propagated;
@@ -93,13 +161,31 @@ impl NeuralNetwork {
         crate::profile_scope!("network.predict");
         let mut current = column_from(input);
         for layer in &self.layers {
-            current = layer.weights.dot(&current) + &layer.biases;
-            current = layer.activation.apply(current);
+            let weighted = self.matmul(&layer.weights, &current) + &layer.biases;
+            current = layer.activation.apply(weighted);
         }
         current
             .index_axis(Axis(1), 0)
             .to_owned()
             .into_raw_vec()
+    }
+
+    fn matmul(&self, lhs: &Array2<f64>, rhs: &Array2<f64>) -> Array2<f64> {
+        #[cfg(feature = "gpu")]
+        if let Some(gpu) = &self.gpu {
+            let (m, k_lhs) = lhs.dim();
+            let (k_rhs, n) = rhs.dim();
+            debug_assert_eq!(k_lhs, k_rhs, "Matrix dimensions mismatch");
+
+            if gpu.is_workload_worth_gpu(m, n, k_lhs, self.gpu_workload_threshold) {
+                match gpu.matmul(lhs, rhs) {
+                    Ok(result) => return result,
+                    Err(err) => log::warn!("GPU matmul failed, falling back to CPU: {err}"),
+                }
+            }
+        }
+
+        lhs.dot(rhs)
     }
 }
 
@@ -126,12 +212,12 @@ mod tests {
         let inputs = vec![vec![0.0], vec![1.0]];
         let targets = vec![vec![0.0], vec![1.0]];
 
-    let history = nn.train(&inputs, &targets, 2_000);
+        let history = nn.train(&inputs, &targets, 2_000);
         assert!(!history.is_empty());
 
         let pred_zero = nn.predict(&[0.0])[0];
         let pred_one = nn.predict(&[1.0])[0];
 
-    assert!(pred_zero < pred_one);
+        assert!(pred_zero < pred_one);
     }
 }

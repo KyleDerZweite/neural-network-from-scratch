@@ -16,10 +16,8 @@ fn main() {
     match args.task.as_str() {
         "xor-core" => run_xor_core(),
         "xor-library" => run_xor_library(),
-        "xor-optimized" => run_xor_optimized(),
         "sin-core" => run_sin_core(0.24),
         "sin-library" => run_sin_library(0.24),
-        "sin-optimized" => run_sin_optimized(0.24),
         "benchmark" => run_benchmark(),
         _ => println!("Invalid task. Please use 'xor-core', 'xor-library', 'xor-optimized', 'sin-core', 'sin-library', or 'sin-optimized'."),
     }
@@ -54,8 +52,6 @@ fn run_benchmark() {
     println!("[2/6] Benchmarking nn-library (XOR)...");
     let (xor_lib_time, xor_lib_mse, xor_lib_preds) = benchmark_xor_library(&xor_inputs, &xor_targets);
     
-    println!("[3/6] Benchmarking nn-optimized (XOR)...");
-    let (xor_opt_time, xor_opt_mse, xor_opt_preds) = benchmark_xor_optimized(&xor_inputs, &xor_targets);
 
     // Benchmark SIN
     println!("[4/6] Benchmarking nn-core (SIN)...");
@@ -64,8 +60,6 @@ fn run_benchmark() {
     println!("[5/6] Benchmarking nn-library (SIN)...");
     let (sin_lib_time, sin_lib_mse, sin_lib_preds) = benchmark_sin_library(&sin_inputs, &sin_targets);
     
-    println!("[6/6] Benchmarking nn-optimized (SIN)...");
-    let (sin_opt_time, sin_opt_mse, sin_opt_preds) = benchmark_sin_optimized(&sin_inputs, &sin_targets);
 
     // Print results
     println!("\n{:=^100}", " BENCHMARK RESULTS ");
@@ -74,14 +68,12 @@ fn run_benchmark() {
     println!("{:-<70}", "");
     println!("{:<20} {:>15.3} {:>15.8} {:>20}", "nn-core", xor_core_time, xor_core_mse, "1.00x (baseline)");
     println!("{:<20} {:>15.3} {:>15.8} {:>20.2}x", "nn-library", xor_lib_time, xor_lib_mse, xor_core_time / xor_lib_time);
-    println!("{:<20} {:>15.3} {:>15.8} {:>20.2}x", "nn-optimized", xor_opt_time, xor_opt_mse, xor_core_time / xor_opt_time);
 
     println!("\n{:=^100}", " SIN APPROXIMATION TASK (20,000 epochs) ");
     println!("{:<20} {:>15} {:>15} {:>20}", "Implementation", "Time (s)", "Final MSE", "Speedup vs Core");
     println!("{:-<70}", "");
     println!("{:<20} {:>15.3} {:>15.8} {:>20}", "nn-core", sin_core_time, sin_core_mse, "1.00x (baseline)");
     println!("{:<20} {:>15.3} {:>15.8} {:>20.2}x", "nn-library", sin_lib_time, sin_lib_mse, sin_core_time / sin_lib_time);
-    println!("{:<20} {:>15.3} {:>15.8} {:>20.2}x", "nn-optimized", sin_opt_time, sin_opt_mse, sin_core_time / sin_opt_time);
 
     println!("\n{:=^100}", " XOR PREDICTIONS ");
     println!("{:<15} {:>12} {:>12} {:>12} {:>12}", "Input", "nn-core", "nn-library", "nn-optimized", "Target");
@@ -91,7 +83,6 @@ fn run_benchmark() {
                  format!("{:?}", xor_inputs[i]), 
                  xor_core_preds[i], 
                  xor_lib_preds[i], 
-                 xor_opt_preds[i], 
                  xor_targets[i][0]);
     }
 
@@ -103,16 +94,13 @@ fn run_benchmark() {
                  sin_inputs[i][0], 
                  sin_core_preds[i], 
                  sin_lib_preds[i], 
-                 sin_opt_preds[i], 
                  sin_targets[i][0]);
     }
 
     // Summary statistics
     println!("\n{:=^100}", " PERFORMANCE SUMMARY ");
     let avg_speedup_lib = ((xor_core_time / xor_lib_time) + (sin_core_time / sin_lib_time)) / 2.0;
-    let avg_speedup_opt = ((xor_core_time / xor_opt_time) + (sin_core_time / sin_opt_time)) / 2.0;
     println!("Average speedup - nn-library:   {:.2}x", avg_speedup_lib);
-    println!("Average speedup - nn-optimized: {:.2}x", avg_speedup_opt);
     println!("\nNote: nn-core is the baseline implementation (Vec-based)");
     println!("      nn-library uses ndarray for matrix operations");
     println!("      nn-optimized uses ndarray with SIMD optimizations");
@@ -133,18 +121,6 @@ fn benchmark_xor_core(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, 
 
 fn benchmark_xor_library(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, f64, Vec<f64>) {
     use nn_core_library::{layer::Layer, network::NeuralNetwork};
-    let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
-    let mut net = NeuralNetwork::new(layers, 0.5);
-    let start = Instant::now();
-    let loss_history = net.train(inputs, targets, 20000);
-    let time = start.elapsed().as_secs_f64();
-    let final_mse = *loss_history.last().unwrap();
-    let predictions = inputs.iter().map(|inp| net.predict(inp)[0]).collect();
-    (time, final_mse, predictions)
-}
-
-fn benchmark_xor_optimized(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, f64, Vec<f64>) {
-    use nn_core_optimized::{layer::Layer, network::NeuralNetwork};
     let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
     let mut net = NeuralNetwork::new(layers, 0.5);
     let start = Instant::now();
@@ -179,17 +155,6 @@ fn benchmark_sin_library(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f6
     (time, final_mse, predictions)
 }
 
-fn benchmark_sin_optimized(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, f64, Vec<f64>) {
-    use nn_core_optimized::{layer::Layer, network::NeuralNetwork};
-    let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
-    let mut net = NeuralNetwork::new(layers, 0.24);
-    let start = Instant::now();
-    let loss_history = net.train(inputs, targets, 20000);
-    let time = start.elapsed().as_secs_f64();
-    let final_mse = *loss_history.last().unwrap();
-    let predictions = inputs.iter().take(5).map(|inp| net.predict(inp)[0]).collect();
-    (time, final_mse, predictions)
-}
 
 fn run_xor_core() {
     use nn_core::{layer::Layer, network::NeuralNetwork};
@@ -239,35 +204,6 @@ fn run_xor_library() {
     plot_loss(&loss_history, "xor-library").unwrap();
 
     // No profiling for library
-
-    println!("\nXOR predictions:");
-    for i in 0..inputs.len() {
-        let prediction = net.predict(&inputs[i]);
-        println!(
-            "Input: {:?}, Prediction: {:.4}, Target: {}",
-            inputs[i], prediction[0], targets[i][0]
-        );
-    }
-}
-
-fn run_xor_optimized() {
-    use nn_core_optimized::{layer::Layer, network::NeuralNetwork};
-    println!("Running XOR task with nn-core-optimized...");
-    let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
-    let mut net = NeuralNetwork::new(layers, 0.5);
-
-    let inputs = vec![
-        vec![0.0, 0.0],
-        vec![0.0, 1.0],
-        vec![1.0, 0.0],
-        vec![1.0, 1.0],
-    ];
-    let targets = vec![vec![0.0], vec![1.0], vec![1.0], vec![0.0]];
-
-    let loss_history = net.train(&inputs, &targets, 20000);
-    plot_loss(&loss_history, "xor-optimized").unwrap();
-
-    // No profiling for optimized
 
     println!("\nXOR predictions:");
     for i in 0..inputs.len() {
@@ -332,40 +268,6 @@ fn run_sin_library(learning_rate: f64) {
 
     let loss_history = net.train(&inputs, &targets, 20000);
     plot_loss(&loss_history, "sin-library").unwrap();
-
-    println!("\nSine approximation complete.");
-
-    println!("\nSine approximation predictions:");
-    for i in (0..10).map(|x| x * 20) {
-        let input = &inputs[i];
-        let target = &targets[i];
-        let prediction = net.predict(input);
-        println!(
-            "Input: {:.2}, Prediction: {:.4}, Target: {:.4}",
-            input[0], prediction[0], target[0]
-        );
-    }
-    
-    let min_loss = *loss_history.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-    println!("Minimum loss achieved: {}", min_loss);
-}
-
-fn run_sin_optimized(learning_rate: f64) {
-    use nn_core_optimized::{layer::Layer, network::NeuralNetwork};
-    println!("Running sine approximation task with nn-core-optimized...");
-    let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
-    let mut net = NeuralNetwork::new(layers, learning_rate);
-
-    let mut inputs = Vec::new();
-    let mut targets = Vec::new();
-    for i in 0..1000 {
-        let x = i as f64 * 7.0 / 1000.0;
-        inputs.push(vec![x]);
-        targets.push(vec![x.sin()]);
-    }
-
-    let loss_history = net.train(&inputs, &targets, 20000);
-    plot_loss(&loss_history, "sin-optimized").unwrap();
 
     println!("\nSine approximation complete.");
 

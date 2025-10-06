@@ -5,6 +5,10 @@
 pub mod activation;
 pub mod layer;
 pub mod network;
+pub mod optimizer;
+
+#[cfg(feature = "gpu")]
+pub mod gpu;
 
 #[cfg(feature = "profiling")]
 pub mod profiling;

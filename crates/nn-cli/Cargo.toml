@@ -13,3 +13,5 @@ clap = { workspace = true }
 chrono = { workspace = true }
 plotters = { workspace = true }
 nn-core = { path = "../nn-core" }
+nn-core-library = { path = "../nn-core-library" }
+nn-core-optimized = { path = "../nn-core-optimized" }

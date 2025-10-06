@@ -1,6 +1,5 @@
 use chrono::prelude::*;
 use clap::Parser;
-use nn_core::{layer::Layer, network::NeuralNetwork};
 use plotters::prelude::*;
 
 #[derive(Parser, Debug)]
@@ -14,10 +13,207 @@ fn main() {
     let args = Args::parse();
 
     match args.task.as_str() {
-        "xor" => run_xor(),
-        "sin" => run_sin(0.24),
-        _ => println!("Invalid task. Please use 'xor' or 'sin'."),
+        "xor-core" => run_xor_core(),
+        "xor-library" => run_xor_library(),
+        "xor-optimized" => run_xor_optimized(),
+        "sin-core" => run_sin_core(0.24),
+        "sin-library" => run_sin_library(0.24),
+        "sin-optimized" => run_sin_optimized(0.24),
+        _ => println!("Invalid task. Please use 'xor-core', 'xor-library', 'xor-optimized', 'sin-core', 'sin-library', or 'sin-optimized'."),
     }
+}
+
+fn run_xor_core() {
+    use nn_core::{layer::Layer, network::NeuralNetwork};
+    println!("Running XOR task with nn-core...");
+    let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
+    let mut net = NeuralNetwork::new(layers, 0.5);
+
+    let inputs = vec![
+        vec![0.0, 0.0],
+        vec![0.0, 1.0],
+        vec![1.0, 0.0],
+        vec![1.0, 1.0],
+    ];
+    let targets = vec![vec![0.0], vec![1.0], vec![1.0], vec![0.0]];
+
+    let loss_history = net.train(&inputs, &targets, 20000);
+    plot_loss(&loss_history, "xor-core").unwrap();
+
+    #[cfg(feature = "profiling")]
+    report_profiling_core("xor-core");
+
+    println!("\nXOR predictions:");
+    for i in 0..inputs.len() {
+        let prediction = net.predict(&inputs[i]);
+        println!(
+            "Input: {:?}, Prediction: {:.4}, Target: {}",
+            inputs[i], prediction[0], targets[i][0]
+        );
+    }
+}
+
+fn run_xor_library() {
+    use nn_core_library::{layer::Layer, network::NeuralNetwork};
+    println!("Running XOR task with nn-core-library...");
+    let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
+    let mut net = NeuralNetwork::new(layers, 0.5);
+
+    let inputs = vec![
+        vec![0.0, 0.0],
+        vec![0.0, 1.0],
+        vec![1.0, 0.0],
+        vec![1.0, 1.0],
+    ];
+    let targets = vec![vec![0.0], vec![1.0], vec![1.0], vec![0.0]];
+
+    let loss_history = net.train(&inputs, &targets, 20000);
+    plot_loss(&loss_history, "xor-library").unwrap();
+
+    // No profiling for library
+
+    println!("\nXOR predictions:");
+    for i in 0..inputs.len() {
+        let prediction = net.predict(&inputs[i]);
+        println!(
+            "Input: {:?}, Prediction: {:.4}, Target: {}",
+            inputs[i], prediction[0], targets[i][0]
+        );
+    }
+}
+
+fn run_xor_optimized() {
+    use nn_core_optimized::{layer::Layer, network::NeuralNetwork};
+    println!("Running XOR task with nn-core-optimized...");
+    let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
+    let mut net = NeuralNetwork::new(layers, 0.5);
+
+    let inputs = vec![
+        vec![0.0, 0.0],
+        vec![0.0, 1.0],
+        vec![1.0, 0.0],
+        vec![1.0, 1.0],
+    ];
+    let targets = vec![vec![0.0], vec![1.0], vec![1.0], vec![0.0]];
+
+    let loss_history = net.train(&inputs, &targets, 20000);
+    plot_loss(&loss_history, "xor-optimized").unwrap();
+
+    // No profiling for optimized
+
+    println!("\nXOR predictions:");
+    for i in 0..inputs.len() {
+        let prediction = net.predict(&inputs[i]);
+        println!(
+            "Input: {:?}, Prediction: {:.4}, Target: {}",
+            inputs[i], prediction[0], targets[i][0]
+        );
+    }
+}
+
+fn run_sin_core(learning_rate: f64) {
+    use nn_core::{layer::Layer, network::NeuralNetwork};
+    println!("Running sine approximation task with nn-core...");
+    let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
+    let mut net = NeuralNetwork::new(layers, learning_rate);
+
+    let mut inputs = Vec::new();
+    let mut targets = Vec::new();
+    for i in 0..1000 {
+        let x = i as f64 * 7.0 / 1000.0;
+        inputs.push(vec![x]);
+        targets.push(vec![x.sin()]);
+    }
+
+    let loss_history = net.train(&inputs, &targets, 20000);
+    plot_loss(&loss_history, "sin-core").unwrap();
+
+    #[cfg(feature = "profiling")]
+    report_profiling_core("sin-core");
+
+    println!("\nSine approximation complete.");
+
+    println!("\nSine approximation predictions:");
+    for i in (0..10).map(|x| x * 20) {
+        let input = &inputs[i];
+        let target = &targets[i];
+        let prediction = net.predict(input);
+        println!(
+            "Input: {:.2}, Prediction: {:.4}, Target: {:.4}",
+            input[0], prediction[0], target[0]
+        );
+    }
+    
+    let min_loss = *loss_history.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    println!("Minimum loss achieved: {}", min_loss);
+}
+
+fn run_sin_library(learning_rate: f64) {
+    use nn_core_library::{layer::Layer, network::NeuralNetwork};
+    println!("Running sine approximation task with nn-core-library...");
+    let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
+    let mut net = NeuralNetwork::new(layers, learning_rate);
+
+    let mut inputs = Vec::new();
+    let mut targets = Vec::new();
+    for i in 0..1000 {
+        let x = i as f64 * 7.0 / 1000.0;
+        inputs.push(vec![x]);
+        targets.push(vec![x.sin()]);
+    }
+
+    let loss_history = net.train(&inputs, &targets, 20000);
+    plot_loss(&loss_history, "sin-library").unwrap();
+
+    println!("\nSine approximation complete.");
+
+    println!("\nSine approximation predictions:");
+    for i in (0..10).map(|x| x * 20) {
+        let input = &inputs[i];
+        let target = &targets[i];
+        let prediction = net.predict(input);
+        println!(
+            "Input: {:.2}, Prediction: {:.4}, Target: {:.4}",
+            input[0], prediction[0], target[0]
+        );
+    }
+    
+    let min_loss = *loss_history.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    println!("Minimum loss achieved: {}", min_loss);
+}
+
+fn run_sin_optimized(learning_rate: f64) {
+    use nn_core_optimized::{layer::Layer, network::NeuralNetwork};
+    println!("Running sine approximation task with nn-core-optimized...");
+    let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
+    let mut net = NeuralNetwork::new(layers, learning_rate);
+
+    let mut inputs = Vec::new();
+    let mut targets = Vec::new();
+    for i in 0..1000 {
+        let x = i as f64 * 7.0 / 1000.0;
+        inputs.push(vec![x]);
+        targets.push(vec![x.sin()]);
+    }
+
+    let loss_history = net.train(&inputs, &targets, 20000);
+    plot_loss(&loss_history, "sin-optimized").unwrap();
+
+    println!("\nSine approximation complete.");
+
+    println!("\nSine approximation predictions:");
+    for i in (0..10).map(|x| x * 20) {
+        let input = &inputs[i];
+        let target = &targets[i];
+        let prediction = net.predict(input);
+        println!(
+            "Input: {:.2}, Prediction: {:.4}, Target: {:.4}",
+            input[0], prediction[0], target[0]
+        );
+    }
+    
+    let min_loss = *loss_history.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    println!("Minimum loss achieved: {}", min_loss);
 }
 
 fn plot_loss(loss_history: &Vec<f64>, task_name: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -59,121 +255,4 @@ fn plot_loss(loss_history: &Vec<f64>, task_name: &str) -> Result<(), Box<dyn std
     println!("Loss history plot saved to {}", filename);
 
     Ok(())
-}
-
-fn run_xor() {
-    println!("Running XOR task...");
-    let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
-    let mut net = NeuralNetwork::new(layers, 0.5);
-
-    let inputs = vec![
-        vec![0.0, 0.0],
-        vec![0.0, 1.0],
-        vec![1.0, 0.0],
-        vec![1.0, 1.0],
-    ];
-    let targets = vec![vec![0.0], vec![1.0], vec![1.0], vec![0.0]];
-
-    let loss_history = net.train(&inputs, &targets, 20000);
-    plot_loss(&loss_history, "xor").unwrap();
-
-    #[cfg(feature = "profiling")]
-    report_profiling("xor");
-
-    println!("\nXOR predictions:");
-    for i in 0..inputs.len() {
-        let prediction = net.predict(&inputs[i]);
-        println!(
-            "Input: {:?}, Prediction: {:.4}, Target: {}",
-            inputs[i], prediction[0], targets[i][0]
-        );
-    }
-}
-
-fn run_sin_with_lr() {
-    let mut best_learning_rate = 0.01;
-    let mut best_loss = f64::INFINITY;
-    
-    let mut learning_rate: f64 = 0.01;
-    for _ in 0..100 {
-        println!("\nRunning sine approximation with learning rate: {}", learning_rate);
-        
-        // Temporarily capture the loss history to find min loss
-        let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
-        let mut net = NeuralNetwork::new(layers, learning_rate);
-        
-        let mut inputs = Vec::new();
-        let mut targets = Vec::new();
-        for i in 0..200 {
-            let x = i as f64 * 7.0 / 200.0;
-            inputs.push(vec![x]);
-            targets.push(vec![x.sin()]);
-        }
-        
-        let loss_history = net.train(&inputs, &targets, 20000);
-        let min_loss = *loss_history.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-        
-        if min_loss < best_loss {
-            best_loss = min_loss;
-            best_learning_rate = learning_rate;
-        }
-        
-        learning_rate += 0.01;
-    }
-    
-    println!("\nBest learning rate: {} with loss: {}", best_learning_rate, best_loss);
-}
-
-fn run_sin(learning_rate: f64) {
-    println!("Running sine approximation task...");
-    let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
-    let mut net = NeuralNetwork::new(layers, learning_rate);
-
-    let mut inputs = Vec::new();
-    let mut targets = Vec::new();
-    for i in 0..1000 {
-        let x = i as f64 * 7.0 / 1000.0;
-        inputs.push(vec![x]);
-        targets.push(vec![x.sin()]);
-    }
-
-    let loss_history = net.train(&inputs, &targets, 20000);
-    plot_loss(&loss_history, "sin").unwrap();
-
-    #[cfg(feature = "profiling")]
-    report_profiling("sin");
-
-    println!("\nSine approximation complete.");
-
-    println!("\nSine approximation predictions:");
-    for i in (0..10).map(|x| x * 20) {
-        let input = &inputs[i];
-        let target = &targets[i];
-        let prediction = net.predict(input);
-        println!(
-            "Input: {:.2}, Prediction: {:.4}, Target: {:.4}",
-            input[0], prediction[0], target[0]
-        );
-    }
-    
-    let min_loss = *loss_history.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-    println!("Minimum loss achieved: {}", min_loss);
-}
-
-#[cfg(feature = "profiling")]
-fn report_profiling(task: &str) {
-    println!("\nProfiling summary for task '{task}':");
-    nn_core::profiling::print_report();
-    nn_core::profiling::clear();
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_cli_args() {
-        let args = Args::parse_from(&["my_app", "--task", "xor"]);
-        assert_eq!(args.task, "xor");
-    }
 }

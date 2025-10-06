@@ -1,8 +1,5 @@
 #![allow(dead_code)]
 
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
-
 /// A matrix of `f64` values.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Matrix {
@@ -13,9 +10,6 @@ pub struct Matrix {
     /// The data of the matrix, stored as a vector of vectors.
     pub data: Vec<Vec<f64>>,
 }
-
-#[cfg(feature = "parallel")]
-const PARALLEL_WORK_THRESHOLD: usize = 512;
 
 impl Matrix {
     /// Creates a new matrix.
@@ -46,25 +40,10 @@ impl Matrix {
     /// Applies a function to each element of the matrix.
     pub fn map<F>(&self, func: F) -> Matrix
     where
-        F: Fn(f64) -> f64 + Send + Sync,
+        F: Fn(f64) -> f64,
     {
         crate::profile_scope!("matrix.map");
         let mut result_data = vec![vec![0.0; self.cols]; self.rows];
-
-        #[cfg(feature = "parallel")]
-        {
-            if Self::should_parallelize(self.rows * self.cols) {
-                result_data
-                    .par_iter_mut()
-                    .enumerate()
-                    .for_each(|(i, row)| {
-                        for (j, value) in row.iter_mut().enumerate() {
-                            *value = func(self.data[i][j]);
-                        }
-                    });
-                return Matrix::new(self.rows, self.cols, result_data);
-            }
-        }
 
         for i in 0..self.rows {
             for j in 0..self.cols {
@@ -82,21 +61,6 @@ impl Matrix {
 
         let mut result_data = vec![vec![0.0; self.cols]; self.rows];
 
-        #[cfg(feature = "parallel")]
-        {
-            if Self::should_parallelize(self.rows * self.cols) {
-                result_data
-                    .par_iter_mut()
-                    .enumerate()
-                    .for_each(|(i, row)| {
-                        for (j, value) in row.iter_mut().enumerate() {
-                            *value = self.data[i][j] + other.data[i][j];
-                        }
-                    });
-                return Matrix::new(self.rows, self.cols, result_data);
-            }
-        }
-
         for i in 0..self.rows {
             for j in 0..self.cols {
                 result_data[i][j] = self.data[i][j] + other.data[i][j];
@@ -113,21 +77,6 @@ impl Matrix {
 
         let mut result_data = vec![vec![0.0; self.cols]; self.rows];
 
-        #[cfg(feature = "parallel")]
-        {
-            if Self::should_parallelize(self.rows * self.cols) {
-                result_data
-                    .par_iter_mut()
-                    .enumerate()
-                    .for_each(|(i, row)| {
-                        for (j, value) in row.iter_mut().enumerate() {
-                            *value = self.data[i][j] - other.data[i][j];
-                        }
-                    });
-                return Matrix::new(self.rows, self.cols, result_data);
-            }
-        }
-
         for i in 0..self.rows {
             for j in 0..self.cols {
                 result_data[i][j] = self.data[i][j] - other.data[i][j];
@@ -142,25 +91,6 @@ impl Matrix {
         assert_eq!(self.cols, other.rows);
 
         let mut result_data = vec![vec![0.0; other.cols]; self.rows];
-
-        #[cfg(feature = "parallel")]
-        {
-            if Self::should_parallelize(self.rows * other.cols) {
-                result_data
-                    .par_iter_mut()
-                    .enumerate()
-                    .for_each(|(i, row)| {
-                        for j in 0..other.cols {
-                            let mut sum = 0.0;
-                            for k in 0..self.cols {
-                                sum += self.data[i][k] * other.data[k][j];
-                            }
-                            row[j] = sum;
-                        }
-                    });
-                return Matrix::new(self.rows, other.cols, result_data);
-            }
-        }
 
         for i in 0..self.rows {
             for j in 0..other.cols {
@@ -181,25 +111,6 @@ impl Matrix {
 
         let mut result_data = vec![vec![0.0; other.rows]; self.rows];
 
-        #[cfg(feature = "parallel")]
-        {
-            if Self::should_parallelize(self.rows * other.rows) {
-                result_data
-                    .par_iter_mut()
-                    .enumerate()
-                    .for_each(|(i, row)| {
-                        for j in 0..other.rows {
-                            let mut sum = 0.0;
-                            for k in 0..self.cols {
-                                sum += self.data[i][k] * other.data[j][k];
-                            }
-                            row[j] = sum;
-                        }
-                    });
-                return Matrix::new(self.rows, other.rows, result_data);
-            }
-        }
-
         for i in 0..self.rows {
             for j in 0..other.rows {
                 let mut sum = 0.0;
@@ -218,25 +129,6 @@ impl Matrix {
         assert_eq!(self.rows, other.rows);
 
         let mut result_data = vec![vec![0.0; other.cols]; self.cols];
-
-        #[cfg(feature = "parallel")]
-        {
-            if Self::should_parallelize(self.cols * other.cols) {
-                result_data
-                    .par_iter_mut()
-                    .enumerate()
-                    .for_each(|(i, row)| {
-                        for j in 0..other.cols {
-                            let mut sum = 0.0;
-                            for k in 0..self.rows {
-                                sum += self.data[k][i] * other.data[k][j];
-                            }
-                            row[j] = sum;
-                        }
-                    });
-                return Matrix::new(self.cols, other.cols, result_data);
-            }
-        }
 
         for i in 0..self.cols {
             for j in 0..other.cols {
@@ -258,21 +150,6 @@ impl Matrix {
 
         let mut result_data = vec![vec![0.0; self.cols]; self.rows];
 
-        #[cfg(feature = "parallel")]
-        {
-            if Self::should_parallelize(self.rows * self.cols) {
-                result_data
-                    .par_iter_mut()
-                    .enumerate()
-                    .for_each(|(i, row)| {
-                        for (j, value) in row.iter_mut().enumerate() {
-                            *value = self.data[i][j] * other.data[i][j];
-                        }
-                    });
-                return Matrix::new(self.rows, self.cols, result_data);
-            }
-        }
-
         for i in 0..self.rows {
             for j in 0..self.cols {
                 result_data[i][j] = self.data[i][j] * other.data[i][j];
@@ -292,12 +169,6 @@ impl Matrix {
         }
         Matrix::new(self.cols, self.rows, result_data)
     }
-
-    #[cfg(feature = "parallel")]
-    fn should_parallelize(work: usize) -> bool {
-        work >= PARALLEL_WORK_THRESHOLD
-    }
-
 }
 
 #[cfg(test)]

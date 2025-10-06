@@ -1,6 +1,7 @@
 use chrono::prelude::*;
 use clap::Parser;
 use plotters::prelude::*;
+use std::time::Instant;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -19,8 +20,175 @@ fn main() {
         "sin-core" => run_sin_core(0.24),
         "sin-library" => run_sin_library(0.24),
         "sin-optimized" => run_sin_optimized(0.24),
+        "benchmark" => run_benchmark(),
         _ => println!("Invalid task. Please use 'xor-core', 'xor-library', 'xor-optimized', 'sin-core', 'sin-library', or 'sin-optimized'."),
     }
+}
+
+fn run_benchmark() {
+    println!("Running benchmark for all implementations...");
+    println!("This will train 6 neural networks (3 implementations × 2 tasks)\n");
+
+    // XOR data
+    let xor_inputs = vec![
+        vec![0.0, 0.0],
+        vec![0.0, 1.0],
+        vec![1.0, 0.0],
+        vec![1.0, 1.0],
+    ];
+    let xor_targets = vec![vec![0.0], vec![1.0], vec![1.0], vec![0.0]];
+
+    // SIN data (using fewer samples for faster benchmarking)
+    let mut sin_inputs = Vec::new();
+    let mut sin_targets = Vec::new();
+    for i in 0..500 {
+        let x = i as f64 * 7.0 / 500.0;
+        sin_inputs.push(vec![x]);
+        sin_targets.push(vec![x.sin()]);
+    }
+
+    // Benchmark XOR
+    println!("[1/6] Benchmarking nn-core (XOR)...");
+    let (xor_core_time, xor_core_mse, xor_core_preds) = benchmark_xor_core(&xor_inputs, &xor_targets);
+    
+    println!("[2/6] Benchmarking nn-library (XOR)...");
+    let (xor_lib_time, xor_lib_mse, xor_lib_preds) = benchmark_xor_library(&xor_inputs, &xor_targets);
+    
+    println!("[3/6] Benchmarking nn-optimized (XOR)...");
+    let (xor_opt_time, xor_opt_mse, xor_opt_preds) = benchmark_xor_optimized(&xor_inputs, &xor_targets);
+
+    // Benchmark SIN
+    println!("[4/6] Benchmarking nn-core (SIN)...");
+    let (sin_core_time, sin_core_mse, sin_core_preds) = benchmark_sin_core(&sin_inputs, &sin_targets);
+    
+    println!("[5/6] Benchmarking nn-library (SIN)...");
+    let (sin_lib_time, sin_lib_mse, sin_lib_preds) = benchmark_sin_library(&sin_inputs, &sin_targets);
+    
+    println!("[6/6] Benchmarking nn-optimized (SIN)...");
+    let (sin_opt_time, sin_opt_mse, sin_opt_preds) = benchmark_sin_optimized(&sin_inputs, &sin_targets);
+
+    // Print results
+    println!("\n{:=^100}", " BENCHMARK RESULTS ");
+    println!("\n{:=^100}", " XOR TASK (20,000 epochs) ");
+    println!("{:<20} {:>15} {:>15} {:>20}", "Implementation", "Time (s)", "Final MSE", "Speedup vs Core");
+    println!("{:-<70}", "");
+    println!("{:<20} {:>15.3} {:>15.8} {:>20}", "nn-core", xor_core_time, xor_core_mse, "1.00x (baseline)");
+    println!("{:<20} {:>15.3} {:>15.8} {:>20.2}x", "nn-library", xor_lib_time, xor_lib_mse, xor_core_time / xor_lib_time);
+    println!("{:<20} {:>15.3} {:>15.8} {:>20.2}x", "nn-optimized", xor_opt_time, xor_opt_mse, xor_core_time / xor_opt_time);
+
+    println!("\n{:=^100}", " SIN APPROXIMATION TASK (20,000 epochs) ");
+    println!("{:<20} {:>15} {:>15} {:>20}", "Implementation", "Time (s)", "Final MSE", "Speedup vs Core");
+    println!("{:-<70}", "");
+    println!("{:<20} {:>15.3} {:>15.8} {:>20}", "nn-core", sin_core_time, sin_core_mse, "1.00x (baseline)");
+    println!("{:<20} {:>15.3} {:>15.8} {:>20.2}x", "nn-library", sin_lib_time, sin_lib_mse, sin_core_time / sin_lib_time);
+    println!("{:<20} {:>15.3} {:>15.8} {:>20.2}x", "nn-optimized", sin_opt_time, sin_opt_mse, sin_core_time / sin_opt_time);
+
+    println!("\n{:=^100}", " XOR PREDICTIONS ");
+    println!("{:<15} {:>12} {:>12} {:>12} {:>12}", "Input", "nn-core", "nn-library", "nn-optimized", "Target");
+    println!("{:-<63}", "");
+    for i in 0..xor_inputs.len() {
+        println!("{:<15} {:>12.4} {:>12.4} {:>12.4} {:>12.1}",
+                 format!("{:?}", xor_inputs[i]), 
+                 xor_core_preds[i], 
+                 xor_lib_preds[i], 
+                 xor_opt_preds[i], 
+                 xor_targets[i][0]);
+    }
+
+    println!("\n{:=^100}", " SIN APPROXIMATION PREDICTIONS (First 5 samples) ");
+    println!("{:<10} {:>12} {:>12} {:>12} {:>12}", "Input", "nn-core", "nn-library", "nn-optimized", "Target");
+    println!("{:-<58}", "");
+    for i in 0..5 {
+        println!("{:<10.2} {:>12.6} {:>12.6} {:>12.6} {:>12.6}",
+                 sin_inputs[i][0], 
+                 sin_core_preds[i], 
+                 sin_lib_preds[i], 
+                 sin_opt_preds[i], 
+                 sin_targets[i][0]);
+    }
+
+    // Summary statistics
+    println!("\n{:=^100}", " PERFORMANCE SUMMARY ");
+    let avg_speedup_lib = ((xor_core_time / xor_lib_time) + (sin_core_time / sin_lib_time)) / 2.0;
+    let avg_speedup_opt = ((xor_core_time / xor_opt_time) + (sin_core_time / sin_opt_time)) / 2.0;
+    println!("Average speedup - nn-library:   {:.2}x", avg_speedup_lib);
+    println!("Average speedup - nn-optimized: {:.2}x", avg_speedup_opt);
+    println!("\nNote: nn-core is the baseline implementation (Vec-based)");
+    println!("      nn-library uses ndarray for matrix operations");
+    println!("      nn-optimized uses ndarray with SIMD optimizations");
+    println!("{:=^100}", "");
+}
+
+fn benchmark_xor_core(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, f64, Vec<f64>) {
+    use nn_core::{layer::Layer, network::NeuralNetwork};
+    let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
+    let mut net = NeuralNetwork::new(layers, 0.5);
+    let start = Instant::now();
+    let loss_history = net.train(inputs, targets, 20000);
+    let time = start.elapsed().as_secs_f64();
+    let final_mse = *loss_history.last().unwrap();
+    let predictions = inputs.iter().map(|inp| net.predict(inp)[0]).collect();
+    (time, final_mse, predictions)
+}
+
+fn benchmark_xor_library(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, f64, Vec<f64>) {
+    use nn_core_library::{layer::Layer, network::NeuralNetwork};
+    let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
+    let mut net = NeuralNetwork::new(layers, 0.5);
+    let start = Instant::now();
+    let loss_history = net.train(inputs, targets, 20000);
+    let time = start.elapsed().as_secs_f64();
+    let final_mse = *loss_history.last().unwrap();
+    let predictions = inputs.iter().map(|inp| net.predict(inp)[0]).collect();
+    (time, final_mse, predictions)
+}
+
+fn benchmark_xor_optimized(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, f64, Vec<f64>) {
+    use nn_core_optimized::{layer::Layer, network::NeuralNetwork};
+    let layers = vec![Layer::new(2, 2, "sigmoid"), Layer::new(2, 1, "sigmoid")];
+    let mut net = NeuralNetwork::new(layers, 0.5);
+    let start = Instant::now();
+    let loss_history = net.train(inputs, targets, 20000);
+    let time = start.elapsed().as_secs_f64();
+    let final_mse = *loss_history.last().unwrap();
+    let predictions = inputs.iter().map(|inp| net.predict(inp)[0]).collect();
+    (time, final_mse, predictions)
+}
+
+fn benchmark_sin_core(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, f64, Vec<f64>) {
+    use nn_core::{layer::Layer, network::NeuralNetwork};
+    let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
+    let mut net = NeuralNetwork::new(layers, 0.24);
+    let start = Instant::now();
+    let loss_history = net.train(inputs, targets, 20000);
+    let time = start.elapsed().as_secs_f64();
+    let final_mse = *loss_history.last().unwrap();
+    let predictions = inputs.iter().take(5).map(|inp| net.predict(inp)[0]).collect();
+    (time, final_mse, predictions)
+}
+
+fn benchmark_sin_library(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, f64, Vec<f64>) {
+    use nn_core_library::{layer::Layer, network::NeuralNetwork};
+    let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
+    let mut net = NeuralNetwork::new(layers, 0.24);
+    let start = Instant::now();
+    let loss_history = net.train(inputs, targets, 20000);
+    let time = start.elapsed().as_secs_f64();
+    let final_mse = *loss_history.last().unwrap();
+    let predictions = inputs.iter().take(5).map(|inp| net.predict(inp)[0]).collect();
+    (time, final_mse, predictions)
+}
+
+fn benchmark_sin_optimized(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, f64, Vec<f64>) {
+    use nn_core_optimized::{layer::Layer, network::NeuralNetwork};
+    let layers = vec![Layer::new(1, 32, "sigmoid"), Layer::new(32, 1, "linear")];
+    let mut net = NeuralNetwork::new(layers, 0.24);
+    let start = Instant::now();
+    let loss_history = net.train(inputs, targets, 20000);
+    let time = start.elapsed().as_secs_f64();
+    let final_mse = *loss_history.last().unwrap();
+    let predictions = inputs.iter().take(5).map(|inp| net.predict(inp)[0]).collect();
+    (time, final_mse, predictions)
 }
 
 fn run_xor_core() {

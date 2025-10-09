@@ -1,6 +1,6 @@
 use std::cmp::min;
 use std::collections::HashMap;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use axum::{
@@ -26,6 +26,17 @@ use crate::models::{
 pub struct AppState {
     pub training_jobs: Mutex<HashMap<Uuid, TrainingJob>>,
     pub trained_networks: Mutex<HashMap<Uuid, TrainedModel>>,
+}
+
+// Helper function to recover from poisoned mutexes
+fn recover_mutex<'a, T>(result: Result<MutexGuard<'a, T>, PoisonError<MutexGuard<'a, T>>>) -> MutexGuard<'a, T> {
+    match result {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("Warning: Mutex was poisoned, recovering data");
+            poisoned.into_inner()
+        }
+    }
 }
 
 pub enum TrainedModel {
@@ -153,7 +164,7 @@ pub async fn train(
     app_state
         .training_jobs
         .lock()
-        .expect("training jobs mutex poisoned")
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
         .insert(job_id, training_job);
 
     // Spawn training task
@@ -187,7 +198,7 @@ pub async fn get_training_progress(
     let jobs = app_state
         .training_jobs
         .lock()
-        .expect("training jobs mutex poisoned");
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     if let Some(job) = jobs.get(&job_id) {
         (
@@ -233,7 +244,7 @@ pub async fn predict(
     let networks = app_state
         .trained_networks
         .lock()
-        .expect("trained networks mutex poisoned");
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     if let Some(model) = networks.get(&payload.job_id) {
         let prediction = model.predict(&payload.input);
@@ -242,7 +253,7 @@ pub async fn predict(
             let jobs = app_state
                 .training_jobs
                 .lock()
-                .expect("training jobs mutex poisoned");
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             jobs.get(&payload.job_id)
                 .and_then(|job| match job.target_type.as_str() {
                     "function" => payload
@@ -288,7 +299,7 @@ pub async fn stop_training(
     let mut jobs = app_state
         .training_jobs
         .lock()
-        .expect("training jobs mutex poisoned");
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     if let Some(job) = jobs.get_mut(&job_id) {
         job.status = TrainingStatus::Stopped;
@@ -317,7 +328,7 @@ fn execute_training(job_id: Uuid, app_state: Arc<AppState>, update_interval: usi
         let mut jobs = app_state
             .training_jobs
             .lock()
-            .expect("training jobs mutex poisoned");
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let job = match jobs.get_mut(&job_id) {
             Some(job) => job,
             None => return,
@@ -442,7 +453,7 @@ fn execute_training(job_id: Uuid, app_state: Arc<AppState>, update_interval: usi
         app_state
             .trained_networks
             .lock()
-            .expect("trained networks mutex poisoned")
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .insert(job_id, model);
     }
 }
@@ -515,7 +526,7 @@ fn update_training_progress_generic<N: PredictiveNetwork + ?Sized>(
     let mut jobs = app_state
         .training_jobs
         .lock()
-        .expect("training jobs mutex poisoned");
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     if let Some(job) = jobs.get_mut(&job_id) {
         let total_epochs = total_epochs.max(1);
@@ -560,7 +571,7 @@ fn finalize_training(job_id: Uuid, app_state: &Arc<AppState>) {
     let mut jobs = app_state
         .training_jobs
         .lock()
-        .expect("training jobs mutex poisoned");
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     if let Some(job) = jobs.get_mut(&job_id) {
         if !matches!(job.status, TrainingStatus::Stopped | TrainingStatus::Failed) {
             job.status = TrainingStatus::Completed;
@@ -599,7 +610,7 @@ fn is_job_stopped(app_state: &Arc<AppState>, job_id: Uuid) -> bool {
     let jobs = app_state
         .training_jobs
         .lock()
-        .expect("training jobs mutex poisoned");
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     jobs.get(&job_id)
         .map(|job| matches!(job.status, TrainingStatus::Stopped))
         .unwrap_or(false)
@@ -614,7 +625,7 @@ fn update_job_status(
     let mut jobs = app_state
         .training_jobs
         .lock()
-        .expect("training jobs mutex poisoned");
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     if let Some(job) = jobs.get_mut(&job_id) {
         job.status = status;
         if let Some(msg) = message {
@@ -740,9 +751,11 @@ fn build_core_layers(
     for index in 0..layer_sizes.len() - 1 {
         let input_size = layer_sizes[index];
         let output_size = layer_sizes[index + 1];
-        // Use the specified activation function for all layers including output
-        // This allows sigmoid on output for classification tasks like XOR
-        let activation = activation_function;
+        let activation = if index == layer_sizes.len() - 2 {
+            "linear"
+        } else {
+            activation_function
+        };
         layers.push(CoreLayer::new(input_size, output_size, activation));
     }
     Ok(layers)
@@ -874,7 +887,7 @@ pub async fn get_network_internals(
     let networks = app_state
         .trained_networks
         .lock()
-        .expect("trained networks mutex poisoned");
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     if let Some(model) = networks.get(&job_id) {
         let layers = match model {
@@ -980,7 +993,7 @@ pub async fn forward_pass(
     let networks = app_state
         .trained_networks
         .lock()
-        .expect("trained networks mutex poisoned");
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     if let Some(model) = networks.get(&payload.job_id) {
         let (activations, weighted_sums, output) = match model {

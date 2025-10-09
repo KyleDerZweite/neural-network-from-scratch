@@ -66,12 +66,7 @@ impl NeuralNetwork {
         self.gpu_workload_threshold = threshold.max(1);
     }
 
-    pub fn train(
-        &mut self,
-        inputs: &[Vec<f64>],
-        targets: &[Vec<f64>],
-        epochs: usize,
-    ) -> Vec<f64> {
+    pub fn train(&mut self, inputs: &[Vec<f64>], targets: &[Vec<f64>], epochs: usize) -> Vec<f64> {
         let mut loss_history = Vec::new();
 
         for epoch in 0..epochs {
@@ -83,7 +78,10 @@ impl NeuralNetwork {
                 let mut activations: Vec<Array2<f64>> = Vec::with_capacity(self.layers.len() + 1);
                 activations.push(input);
                 for layer in &self.layers {
-                    let weighted = self.matmul(&layer.weights, activations.last().expect("activation available"));
+                    let weighted = self.matmul(
+                        &layer.weights,
+                        activations.last().expect("activation available"),
+                    );
                     let z = weighted + &layer.biases;
                     let activation = layer.activation.apply(z);
                     activations.push(activation);
@@ -108,7 +106,9 @@ impl NeuralNetwork {
                         let weights_t = self.layers[layer_idx].weights.t().to_owned();
                         let mut propagated = self.matmul(&weights_t, &delta);
                         // Apply previous layer's activation derivative
-                        let prev_deriv = self.layers[layer_idx - 1].activation.derivative(&activations[layer_idx]);
+                        let prev_deriv = self.layers[layer_idx - 1]
+                            .activation
+                            .derivative(&activations[layer_idx]);
                         propagated = propagated * prev_deriv;
                         Some(propagated)
                     } else {
@@ -159,10 +159,7 @@ impl NeuralNetwork {
             let weighted = self.matmul(&layer.weights, &current) + &layer.biases;
             current = layer.activation.apply(weighted);
         }
-        current
-            .index_axis(Axis(1), 0)
-            .to_owned()
-            .into_raw_vec()
+        current.index_axis(Axis(1), 0).to_owned().into_raw_vec()
     }
 
     fn matmul(&self, lhs: &Array2<f64>, rhs: &Array2<f64>) -> Array2<f64> {
@@ -182,11 +179,15 @@ impl NeuralNetwork {
 
         lhs.dot(rhs)
     }
+
+    /// Gets a reference to the layers.
+    pub fn get_layers(&self) -> &Vec<Layer> {
+        &self.layers
+    }
 }
 
 fn column_from(data: &[f64]) -> Array2<f64> {
-    Array2::from_shape_vec((data.len(), 1), data.to_vec())
-        .expect("valid column shape for vector")
+    Array2::from_shape_vec((data.len(), 1), data.to_vec()).expect("valid column shape for vector")
 }
 
 #[cfg(test)]

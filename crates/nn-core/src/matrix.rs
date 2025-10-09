@@ -248,11 +248,7 @@ mod tests {
         let a = Matrix::new(2, 2, vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
         let b = Matrix::new(3, 2, vec![vec![5.0, 6.0], vec![7.0, 8.0], vec![9.0, 10.0]]);
         let result = a.mul_transpose(&b);
-        let expected = Matrix::new(
-            2,
-            3,
-            vec![vec![17.0, 23.0, 29.0], vec![39.0, 53.0, 67.0]],
-        );
+        let expected = Matrix::new(2, 3, vec![vec![17.0, 23.0, 29.0], vec![39.0, 53.0, 67.0]]);
         assert_eq!(result, expected);
     }
 

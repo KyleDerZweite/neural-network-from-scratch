@@ -145,27 +145,43 @@ Trained using backpropagation with MSE. Learning rate `0.01`, `20,000` epochs. M
 ## 6.0 Usage and Execution Guide
 
 ### 6.1 Prerequisites
-- Programming Language: Python 3.8+
-- Visualization (Optional): `matplotlib` for the sine plot. Install via:
-```bash
-pip install matplotlib
-```
-All other components are implemented in standard Python with no other external dependencies.
+- Programming Language: Rust 1.76+ (install via [rustup](https://rustup.rs/))
+- Visualization: `plotters` crate for generating training plots (included as dependency)
+- Optional BLAS acceleration: `flexiblas-devel` package for enhanced matrix operations
+  - Fedora/RHEL: `sudo dnf install flexiblas-devel`
+  - Ubuntu/Debian: `sudo apt install libopenblas-dev`
+  - Arch: `sudo pacman -S openblas`
+
+All core components are implemented in Rust with no external machine learning libraries.
 
 ### 6.2 Code Structure
-- `main.py`: Main script for training and evaluation for both tasks.
-- `network.py`: `NeuralNetwork` and `Layer` classes (structure and training logic).
-- `matrix.py`: Custom linear algebra module (matrix/vector operations).
+- `crates/nn-cli/src/main.rs`: CLI interface for training and benchmarking neural networks
+- `crates/nn-core/src/`: Basic neural network implementation with custom matrix operations
+- `crates/nn-core-library/src/`: Optimized implementation using `ndarray` with multiple acceleration options
+- `crates/nn-core-library/src/network.rs`: Neural network training logic with backpropagation
+- `crates/nn-core-library/src/layer.rs`: Layer abstraction with weight initialization
+- `crates/nn-core-library/src/activation.rs`: Activation functions and derivatives
+- `crates/nn-core-library/src/optimizer.rs`: Gradient descent optimizers (SGD, Adam, RMSprop)
 
 ### 6.3 Running the Program
 To train and test the network on the XOR problem:
 ```bash
-python main.py --task xor
+cargo run --release -p nn-cli -- --task xor-library
 ```
 
 To train on the `sin(x)` approximation problem and generate the plot:
 ```bash
-python main.py --task sin
+cargo run --release -p nn-cli -- --task sin-library
+```
+
+To run a full benchmark comparing all implementations:
+```bash
+cargo run --release -p nn-cli -- --task benchmark
+```
+
+To enable BLAS acceleration for improved performance on larger datasets:
+```bash
+cargo run --release -p nn-cli --features nn-core-library/blas -- --task benchmark
 ```
 
 ## 7.0 Conclusion

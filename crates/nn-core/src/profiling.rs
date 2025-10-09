@@ -65,10 +65,7 @@ pub fn snapshot() -> Vec<ProfileEntry> {
 }
 
 pub fn clear() {
-    PROFILER
-        .lock()
-        .expect("profiling mutex poisoned")
-        .clear();
+    PROFILER.lock().expect("profiling mutex poisoned").clear();
 }
 
 pub fn print_report() {
@@ -79,7 +76,10 @@ pub fn print_report() {
     }
 
     println!("\n[profiling] runtime hotspots:");
-    println!("{:<28} {:>12} {:>16} {:>16}", "label", "calls", "total (ms)", "avg (µs)");
+    println!(
+        "{:<28} {:>12} {:>16} {:>16}",
+        "label", "calls", "total (ms)", "avg (µs)"
+    );
 
     for entry in entries {
         let total_ms = entry.total.as_secs_f64() * 1_000.0;
@@ -90,10 +90,7 @@ pub fn print_report() {
         };
         println!(
             "{:<28} {:>12} {:>16.3} {:>16.1}",
-            entry.label,
-            entry.calls,
-            total_ms,
-            avg_us
+            entry.label, entry.calls, total_ms, avg_us
         );
     }
 }

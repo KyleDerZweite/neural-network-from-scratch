@@ -47,54 +47,90 @@ fn run_benchmark() {
 
     // Benchmark XOR
     println!("[1/6] Benchmarking nn-core (XOR)...");
-    let (xor_core_time, xor_core_mse, xor_core_preds) = benchmark_xor_core(&xor_inputs, &xor_targets);
-    
+    let (xor_core_time, xor_core_mse, xor_core_preds) =
+        benchmark_xor_core(&xor_inputs, &xor_targets);
+
     println!("[2/6] Benchmarking nn-library (XOR)...");
-    let (xor_lib_time, xor_lib_mse, xor_lib_preds) = benchmark_xor_library(&xor_inputs, &xor_targets);
-    
+    let (xor_lib_time, xor_lib_mse, xor_lib_preds) =
+        benchmark_xor_library(&xor_inputs, &xor_targets);
 
     // Benchmark SIN
     println!("[4/6] Benchmarking nn-core (SIN)...");
-    let (sin_core_time, sin_core_mse, sin_core_preds) = benchmark_sin_core(&sin_inputs, &sin_targets);
-    
+    let (sin_core_time, sin_core_mse, sin_core_preds) =
+        benchmark_sin_core(&sin_inputs, &sin_targets);
+
     println!("[5/6] Benchmarking nn-library (SIN)...");
-    let (sin_lib_time, sin_lib_mse, sin_lib_preds) = benchmark_sin_library(&sin_inputs, &sin_targets);
-    
+    let (sin_lib_time, sin_lib_mse, sin_lib_preds) =
+        benchmark_sin_library(&sin_inputs, &sin_targets);
 
     // Print results
     println!("\n{:=^100}", " BENCHMARK RESULTS ");
     println!("\n{:=^100}", " XOR TASK (20,000 epochs) ");
-    println!("{:<20} {:>15} {:>15} {:>20}", "Implementation", "Time (s)", "Final MSE", "Speedup vs Core");
+    println!(
+        "{:<20} {:>15} {:>15} {:>20}",
+        "Implementation", "Time (s)", "Final MSE", "Speedup vs Core"
+    );
     println!("{:-<70}", "");
-    println!("{:<20} {:>15.3} {:>15.8} {:>20}", "nn-core", xor_core_time, xor_core_mse, "1.00x (baseline)");
-    println!("{:<20} {:>15.3} {:>15.8} {:>20.2}x", "nn-library", xor_lib_time, xor_lib_mse, xor_core_time / xor_lib_time);
+    println!(
+        "{:<20} {:>15.3} {:>15.8} {:>20}",
+        "nn-core", xor_core_time, xor_core_mse, "1.00x (baseline)"
+    );
+    println!(
+        "{:<20} {:>15.3} {:>15.8} {:>20.2}x",
+        "nn-library",
+        xor_lib_time,
+        xor_lib_mse,
+        xor_core_time / xor_lib_time
+    );
 
     println!("\n{:=^100}", " SIN APPROXIMATION TASK (20,000 epochs) ");
-    println!("{:<20} {:>15} {:>15} {:>20}", "Implementation", "Time (s)", "Final MSE", "Speedup vs Core");
+    println!(
+        "{:<20} {:>15} {:>15} {:>20}",
+        "Implementation", "Time (s)", "Final MSE", "Speedup vs Core"
+    );
     println!("{:-<70}", "");
-    println!("{:<20} {:>15.3} {:>15.8} {:>20}", "nn-core", sin_core_time, sin_core_mse, "1.00x (baseline)");
-    println!("{:<20} {:>15.3} {:>15.8} {:>20.2}x", "nn-library", sin_lib_time, sin_lib_mse, sin_core_time / sin_lib_time);
+    println!(
+        "{:<20} {:>15.3} {:>15.8} {:>20}",
+        "nn-core", sin_core_time, sin_core_mse, "1.00x (baseline)"
+    );
+    println!(
+        "{:<20} {:>15.3} {:>15.8} {:>20.2}x",
+        "nn-library",
+        sin_lib_time,
+        sin_lib_mse,
+        sin_core_time / sin_lib_time
+    );
 
     println!("\n{:=^100}", " XOR PREDICTIONS ");
-    println!("{:<15} {:>12} {:>12} {:>12}", "Input", "nn-core", "nn-library", "Target");
+    println!(
+        "{:<15} {:>12} {:>12} {:>12}",
+        "Input", "nn-core", "nn-library", "Target"
+    );
     println!("{:-<51}", "");
     for i in 0..xor_inputs.len() {
-        println!("{:<15} {:>12.4} {:>12.4} {:>12.1}",
-                 format!("{:?}", xor_inputs[i]), 
-                 xor_core_preds[i], 
-                 xor_lib_preds[i], 
-                 xor_targets[i][0]);
+        println!(
+            "{:<15} {:>12.4} {:>12.4} {:>12.1}",
+            format!("{:?}", xor_inputs[i]),
+            xor_core_preds[i],
+            xor_lib_preds[i],
+            xor_targets[i][0]
+        );
     }
 
-    println!("\n{:=^100}", " SIN APPROXIMATION PREDICTIONS (First 5 samples) ");
-    println!("{:<10} {:>12} {:>12} {:>12}", "Input", "nn-core", "nn-library", "Target");
+    println!(
+        "\n{:=^100}",
+        " SIN APPROXIMATION PREDICTIONS (First 5 samples) "
+    );
+    println!(
+        "{:<10} {:>12} {:>12} {:>12}",
+        "Input", "nn-core", "nn-library", "Target"
+    );
     println!("{:-<46}", "");
     for i in 0..5 {
-        println!("{:<10.2} {:>12.6} {:>12.6} {:>12.6}",
-                 sin_inputs[i][0], 
-                 sin_core_preds[i], 
-                 sin_lib_preds[i], 
-                 sin_targets[i][0]);
+        println!(
+            "{:<10.2} {:>12.6} {:>12.6} {:>12.6}",
+            sin_inputs[i][0], sin_core_preds[i], sin_lib_preds[i], sin_targets[i][0]
+        );
     }
 
     // Summary statistics
@@ -139,7 +175,11 @@ fn benchmark_sin_core(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f64, 
     let loss_history = net.train(inputs, targets, 20000);
     let time = start.elapsed().as_secs_f64();
     let final_mse = *loss_history.last().unwrap();
-    let predictions = inputs.iter().take(5).map(|inp| net.predict(inp)[0]).collect();
+    let predictions = inputs
+        .iter()
+        .take(5)
+        .map(|inp| net.predict(inp)[0])
+        .collect();
     (time, final_mse, predictions)
 }
 
@@ -151,10 +191,13 @@ fn benchmark_sin_library(inputs: &Vec<Vec<f64>>, targets: &Vec<Vec<f64>>) -> (f6
     let loss_history = net.train(inputs, targets, 20000);
     let time = start.elapsed().as_secs_f64();
     let final_mse = *loss_history.last().unwrap();
-    let predictions = inputs.iter().take(5).map(|inp| net.predict(inp)[0]).collect();
+    let predictions = inputs
+        .iter()
+        .take(5)
+        .map(|inp| net.predict(inp)[0])
+        .collect();
     (time, final_mse, predictions)
 }
-
 
 fn run_xor_core() {
     use nn_core::{layer::Layer, network::NeuralNetwork};
@@ -247,8 +290,11 @@ fn run_sin_core(learning_rate: f64) {
             input[0], prediction[0], target[0]
         );
     }
-    
-    let min_loss = *loss_history.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+
+    let min_loss = *loss_history
+        .iter()
+        .min_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap();
     println!("Minimum loss achieved: {}", min_loss);
 }
 
@@ -281,8 +327,11 @@ fn run_sin_library(learning_rate: f64) {
             input[0], prediction[0], target[0]
         );
     }
-    
-    let min_loss = *loss_history.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+
+    let min_loss = *loss_history
+        .iter()
+        .min_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap();
     println!("Minimum loss achieved: {}", min_loss);
 }
 

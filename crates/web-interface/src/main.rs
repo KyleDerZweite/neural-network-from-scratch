@@ -8,7 +8,7 @@ use axum::{
 use tower_http::services::ServeDir;
 
 use web_interface::{
-    api::{get_training_progress, predict, stop_training, train},
+    api::{get_training_progress, predict, stop_training, train, get_network_internals, forward_pass},
     AppState,
 };
 
@@ -24,6 +24,8 @@ async fn main() {
         .route("/training-progress/:id", get(get_training_progress))
         .route("/predict", post(predict))
         .route("/stop-training/:id", post(stop_training))
+        .route("/network-internals/:id", get(get_network_internals))
+        .route("/forward-pass", post(forward_pass))
         .with_state(Arc::clone(&app_state))
         .fallback_service(ServeDir::new(concat!(
             env!("CARGO_MANIFEST_DIR"),

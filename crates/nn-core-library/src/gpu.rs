@@ -97,51 +97,52 @@ impl GpuAccelerator {
             source: wgpu::ShaderSource::Wgsl(MATMUL_SHADER.into()),
         });
 
-        let matmul_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("nn-core-library matmul bind group layout"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
+        let matmul_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("nn-core-library matmul bind group layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: false },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-            ],
-        });
+                ],
+            });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("nn-core-library matmul pipeline layout"),
@@ -181,24 +182,31 @@ impl GpuAccelerator {
     pub fn matmul(&self, lhs: &Array2<f64>, rhs: &Array2<f64>) -> Result<Array2<f64>, GpuError> {
         let (m, k_lhs) = lhs.dim();
         let (k_rhs, n) = rhs.dim();
-        assert_eq!(k_lhs, k_rhs, "Matrix dimensions are incompatible for matmul");
+        assert_eq!(
+            k_lhs, k_rhs,
+            "Matrix dimensions are incompatible for matmul"
+        );
 
         let lhs_data: Vec<f32> = lhs.iter().map(|&x| x as f32).collect();
         let rhs_data: Vec<f32> = rhs.iter().map(|&x| x as f32).collect();
         let output_elems = m * n;
         let output_size_bytes = (output_elems * std::mem::size_of::<f32>()) as u64;
 
-        let lhs_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("nn-core-library lhs"),
-            contents: bytemuck::cast_slice(&lhs_data),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        let lhs_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("nn-core-library lhs"),
+                contents: bytemuck::cast_slice(&lhs_data),
+                usage: wgpu::BufferUsages::STORAGE,
+            });
 
-        let rhs_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("nn-core-library rhs"),
-            contents: bytemuck::cast_slice(&rhs_data),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        let rhs_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("nn-core-library rhs"),
+                contents: bytemuck::cast_slice(&rhs_data),
+                usage: wgpu::BufferUsages::STORAGE,
+            });
 
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("nn-core-library output"),
@@ -221,26 +229,42 @@ impl GpuAccelerator {
             _pad: 0,
         };
 
-        let params_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("nn-core-library params"),
-            contents: bytemuck::bytes_of(&params),
-            usage: wgpu::BufferUsages::UNIFORM,
-        });
+        let params_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("nn-core-library params"),
+                contents: bytemuck::bytes_of(&params),
+                usage: wgpu::BufferUsages::UNIFORM,
+            });
 
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("nn-core-library matmul bind group"),
             layout: &self.matmul_bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: lhs_buffer.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: rhs_buffer.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: output_buffer.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 3, resource: params_buffer.as_entire_binding() },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: lhs_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: rhs_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: output_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: params_buffer.as_entire_binding(),
+                },
             ],
         });
 
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("nn-core-library matmul encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("nn-core-library matmul encoder"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {

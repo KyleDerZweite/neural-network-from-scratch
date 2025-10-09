@@ -25,30 +25,50 @@ h1 {
 h2 {
     color: #81C784; /* Slightly lighter accent */
     border-bottom: 1px solid #333;
-    padding-bottom: 10px;
-    margin-top: 20px;
-    margin-bottom: 20px;
-    font-size: 1.8em;
+    padding-bottom: 5px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    font-size: 1.5em;
 }
 
 /* Main App Container */
 #app {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 25px;
+    grid-template-columns: 0.8fr 3.5fr 0.8fr;
+    gap: 15px;
     width: 100%;
-    max-width: 1200px;
+    max-width: 95%;
     margin-top: 20px;
+    grid-template-areas: "config status prediction";
 }
 
 /* Individual Sections (Config, Status, Prediction) */
 .config-section, .status-section, .prediction-section {
     background-color: #2a2a2a; /* Slightly lighter dark background for sections */
-    padding: 25px;
+    padding: 15px;
     border-radius: 10px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); /* Subtle shadow */
     display: flex;
     flex-direction: column;
+}
+
+/* Grid area assignments */
+.config-section {
+    grid-area: config;
+}
+
+.status-section {
+    grid-area: status;
+}
+
+.status-section p {
+    margin: 3px 0;
+    line-height: 1.4;
+    font-size: 0.95em;
+}
+
+.prediction-section {
+    grid-area: prediction;
 }
 
 /* Labels */
@@ -120,12 +140,298 @@ canvas {
     height: auto;
 }
 
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 300px 450px;
+    gap: 15px;
+    margin-top: 10px;
+    transition: grid-template-rows 0.3s ease;
+}
+
+.charts-grid canvas {
+    margin-top: 0;
+}
+
+.charts-grid canvas[style*="display: none"] {
+    display: none !important;
+}
+
+.chart {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.chart-lg {
+    grid-column: 1 / -1;
+}
+
+.checkbox-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.checkbox-inline input[type="checkbox"] {
+    margin: 0;
+}
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background-color: #333;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.preview-table th,
+.preview-table td {
+    padding: 10px;
+    border-bottom: 1px solid #444;
+    text-align: left;
+}
+
+.preview-table th {
+    background-color: #2f2f2f;
+    color: #e0e0e0;
+}
+
+.preview-table tbody tr:nth-child(even) {
+    background-color: #2b2b2b;
+}
+
+.preview-table tbody tr:hover {
+    background-color: #3b3b3b;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #333;
+}
+
+.tab-button {
+    background-color: #2a2a2a;
+    color: #bbbbbb;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px 5px 0 0;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    margin-top: 0;
+}
+
+.tab-button:hover {
+    background-color: #3a3a3a;
+    color: #e0e0e0;
+    transform: none;
+}
+
+.tab-button.active {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Network Visualization */
+.viz-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #333;
+    border-radius: 5px;
+}
+
+.viz-controls label {
+    margin: 0;
+    font-size: 0.9em;
+}
+
+.viz-controls input {
+    flex: 1;
+    max-width: 150px;
+    padding: 6px 10px;
+    margin: 0;
+}
+
+.small-button {
+    padding: 6px 12px;
+    font-size: 0.9em;
+    margin: 0;
+}
+
+.network-visualization {
+    width: 100%;
+    height: 500px;
+    background-color: #2a2a2a;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.network-info {
+    background-color: #333;
+    padding: 15px;
+    border-radius: 5px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.network-info h3 {
+    color: #81C784;
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.2em;
+}
+
+.weight-stats {
+    margin-top: 15px;
+    font-size: 0.9em;
+}
+
+.weight-stats table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.weight-stats table th,
+.weight-stats table td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #444;
+}
+
+.weight-stats table th {
+    background-color: #2f2f2f;
+    color: #e0e0e0;
+}
+
+#layer_details {
+    font-size: 0.9em;
+    line-height: 1.6;
+}
+
+#layer_details p {
+    margin: 5px 0;
+}
+
+/* 3D Plot Container */
+.plot-3d {
+    width: 100%;
+    height: 800px;
+    background-color: #2a2a2a;
+    border-radius: 5px;
+    margin-top: 15px;
+}
+
+/* Weights/Biases Display */
+.weights-biases-display {
+    background-color: #2a2a2a;
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 15px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.weights-biases-display h3 {
+    color: #81C784;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.layer-weights {
+    background-color: #333;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.layer-weights h4 {
+    color: #90CAF9;
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+
+.weights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.weight-cell, .bias-cell {
+    background-color: #2a2a2a;
+    padding: 5px;
+    border-radius: 3px;
+    text-align: center;
+    font-size: 0.85em;
+    font-family: 'Courier New', monospace;
+    border: 1px solid #444;
+}
+
+.weight-cell {
+    color: #FFD54F;
+}
+
+.bias-cell {
+    color: #81C784;
+}
+
+.biases-container {
+    margin-top: 10px;
+}
+
+.biases-container h5 {
+    color: #bbbbbb;
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 0.95em;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     #app {
         grid-template-columns: 1fr;
+        grid-template-areas:
+            "config"
+            "status"
+            "prediction";
     }
     body {
         padding: 15px;
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 1200px) and (min-width: 769px) {
+    #app {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "config status"
+            "prediction status";
+    }
+
+    .charts-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

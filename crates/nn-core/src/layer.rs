@@ -53,4 +53,29 @@ impl Layer {
             activation: activation.to_string(),
         }
     }
+
+    /// Gets the weights as a 2D vector.
+    pub fn get_weights(&self) -> Vec<Vec<f64>> {
+        self.weights.data.clone()
+    }
+
+    /// Gets the biases as a 1D vector.
+    pub fn get_biases(&self) -> Vec<f64> {
+        self.biases.data.iter().map(|row| row[0]).collect()
+    }
+
+    /// Performs forward pass and returns both activations and weighted sums.
+    pub fn forward_with_details(&self, input: &[f64]) -> (Vec<f64>, Vec<f64>) {
+        let input_matrix = Matrix::new(input.len(), 1, input.iter().map(|&v| vec![v]).collect());
+        let weighted_sum = self.weights.mul(&input_matrix).add(&self.biases);
+        let weighted_sum_vec: Vec<f64> = weighted_sum.data.iter().map(|row| row[0]).collect();
+        
+        let activation_vec = match self.activation.as_str() {
+            "sigmoid" => weighted_sum_vec.iter().map(|&x| 1.0 / (1.0 + (-x).exp())).collect(),
+            "relu" => weighted_sum_vec.iter().map(|&x| x.max(0.0)).collect(),
+            "linear" | _ => weighted_sum_vec.clone(),
+        };
+        
+        (activation_vec, weighted_sum_vec)
+    }
 }

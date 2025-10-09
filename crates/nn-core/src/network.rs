@@ -86,8 +86,7 @@ impl NeuralNetwork {
                             let mut propagated = self.layers[l].weights.transpose_mul(&delta);
                             if self.layers[l - 1].activation == "sigmoid" {
                                 propagated = propagated.dot(
-                                    &activations[l]
-                                        .map(activation::sigmoid_derivative_from_output),
+                                    &activations[l].map(activation::sigmoid_derivative_from_output),
                                 );
                             }
                             Some(propagated)
@@ -142,5 +141,10 @@ impl NeuralNetwork {
         }
 
         current_input.data.into_iter().flatten().collect()
+    }
+
+    /// Gets a reference to the layers.
+    pub fn get_layers(&self) -> &Vec<Layer> {
+        &self.layers
     }
 }

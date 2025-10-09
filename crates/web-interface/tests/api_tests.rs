@@ -4,11 +4,11 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use http_body_util::BodyExt;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tower::ServiceExt;
 use tower_http::services::ServeDir;
-use http_body_util::BodyExt;
 use web_interface::api;
 
 async fn app() -> Router {
@@ -42,6 +42,7 @@ async fn test_post_train() {
                 .body(Body::from(
                     r#"{
                         "network_config": {
+                            "backend": "nn-core",
                             "layers": [1, 32, 1],
                             "activation_function": "sigmoid",
                             "learning_rate": 0.01,

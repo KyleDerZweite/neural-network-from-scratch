@@ -41,6 +41,7 @@ async fn test_train_mathematical_function() {
                 .body(Body::from(
                     r#"{
                         "network_config": {
+                            "backend": "nn-core",
                             "layers": [1, 32, 1],
                             "activation_function": "sigmoid",
                             "learning_rate": 0.01,
@@ -71,6 +72,7 @@ async fn test_train_logical_operation_xor() {
                 .body(Body::from(
                     r#"{
                         "network_config": {
+                            "backend": "nn-core",
                             "layers": [2, 2, 1],
                             "activation_function": "sigmoid",
                             "learning_rate": 0.1,

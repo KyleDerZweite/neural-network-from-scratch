@@ -10,3 +10,4 @@
 flamegraph.svg
 perf.data
 *.lock
+documents/*

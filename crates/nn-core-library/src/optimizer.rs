@@ -8,7 +8,11 @@ pub enum OptimizerKind {
     /// Stochastic gradient descent with optional momentum.
     Sgd { momentum: f64 },
     /// Adam optimizer with bias correction.
-    Adam { beta1: f64, beta2: f64, epsilon: f64 },
+    Adam {
+        beta1: f64,
+        beta2: f64,
+        epsilon: f64,
+    },
     /// RMSprop optimizer.
     RMSprop { beta: f64, epsilon: f64 },
 }
@@ -61,9 +65,11 @@ impl OptimizerState {
             OptimizerKind::Sgd { momentum } => {
                 OptimizerState::Sgd(SgdState::new(momentum, layer_shapes))
             }
-            OptimizerKind::Adam { beta1, beta2, epsilon } => {
-                OptimizerState::Adam(AdamState::new(beta1, beta2, epsilon, layer_shapes))
-            }
+            OptimizerKind::Adam {
+                beta1,
+                beta2,
+                epsilon,
+            } => OptimizerState::Adam(AdamState::new(beta1, beta2, epsilon, layer_shapes)),
             OptimizerKind::RMSprop { beta, epsilon } => {
                 OptimizerState::RMSprop(RMSpropState::new(beta, epsilon, layer_shapes))
             }
@@ -88,15 +94,30 @@ impl OptimizerState {
         learning_rate: f64,
     ) {
         match self {
-            OptimizerState::Sgd(state) => {
-                state.apply(layer_index, weight_grad, bias_grad, weights, biases, learning_rate)
-            }
-            OptimizerState::Adam(state) => {
-                state.apply(layer_index, weight_grad, bias_grad, weights, biases, learning_rate)
-            }
-            OptimizerState::RMSprop(state) => {
-                state.apply(layer_index, weight_grad, bias_grad, weights, biases, learning_rate)
-            }
+            OptimizerState::Sgd(state) => state.apply(
+                layer_index,
+                weight_grad,
+                bias_grad,
+                weights,
+                biases,
+                learning_rate,
+            ),
+            OptimizerState::Adam(state) => state.apply(
+                layer_index,
+                weight_grad,
+                bias_grad,
+                weights,
+                biases,
+                learning_rate,
+            ),
+            OptimizerState::RMSprop(state) => state.apply(
+                layer_index,
+                weight_grad,
+                bias_grad,
+                weights,
+                biases,
+                learning_rate,
+            ),
         }
     }
 }
@@ -250,14 +271,11 @@ impl AdamState {
                 *w -= learning_rate * m_hat / (v_hat.sqrt() + epsilon);
             });
 
-        Zip::from(biases)
-            .and(&*m_b)
-            .and(&*v_b)
-            .for_each(|b, m, v| {
-                let m_hat = *m / bias_correction1;
-                let v_hat = *v / bias_correction2;
-                *b -= learning_rate * m_hat / (v_hat.sqrt() + epsilon);
-            });
+        Zip::from(biases).and(&*m_b).and(&*v_b).for_each(|b, m, v| {
+            let m_hat = *m / bias_correction1;
+            let v_hat = *v / bias_correction2;
+            *b -= learning_rate * m_hat / (v_hat.sqrt() + epsilon);
+        });
     }
 }
 
